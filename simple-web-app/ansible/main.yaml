@@ -1,0 +1,64 @@
+---
+- hosts: all
+  user: ubuntu
+
+  tasks:
+  - name: 'install and config haproxy for webapp - proxy 80:8080'
+    become: yes
+    block: 
+    - apt:
+        name: haproxy
+        state: present
+    - blockinfile:
+        state: present
+        path: /etc/haproxy/haproxy.cfg
+        block: "{{ lookup('file', './haproxy.conf') }}"
+        insertafter: EOF
+        validate: '/usr/sbin/haproxy -f %s -c'
+  - name: install golang and deploy go app
+    become: yes
+    block:
+    - get_url:
+        dest: /home/{{ ansible_user }}/go.tgz
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+        url: 'https://go.dev/dl/go1.17.3.linux-amd64.tar.gz'
+    - shell: >
+        tar -C /usr/local -zxvf /home/{{ ansible_user }}/go.tgz
+    - git:
+        clone: yes
+        dest: /home/{{ ansible_user }}/webapp
+        repo: 'https://github.com/yaskinny/tp-for-tf'
+    - shell: 
+        chdir: /home/{{ ansible_user }}/webapp/
+        cmd: /usr/local/go/bin/go build -o /usr/local/bin/webapp cmd/main.go
+    - template:
+        src: webapp.service
+        dest: /etc/systemd/system/
+        owner: root
+        group: root
+        mode: "0644"
+    - group:
+        state: present
+        name: webapp
+        gid: 3001
+    - user:
+        name: webapp
+        state: present
+        password_lock: yes
+        create_home: no
+        uid: 3001
+        group: webapp
+        shell: '/usr/bin/false'
+    - systemd:
+        daemon_reload: yes
+        name: "{{ item.n }}"
+        enabled: yes
+        state: "{{ item.s }}"
+      loop:
+      - n: webapp
+        s: started
+      - n: haproxy
+        s: restarted
+...

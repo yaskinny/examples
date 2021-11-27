@@ -1,0 +1,17 @@
+[Unit]
+Description="run webapp"
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=webapp
+Group=webapp
+ExecStart=/usr/local/bin/webapp
+Type=simple
+KillMode=process
+Environment="REDIS_HOST={{ redis_host_ip }}:6379"
+Restart=on-failure
+RestartSec=1m
+
+[Install]
+WantedBy=multi-user.target
