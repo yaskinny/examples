@@ -1,0 +1,46 @@
+---
+- hosts: all
+  user: ubuntu
+  tasks:
+  - name: install golang and deploy go app
+    become: yes
+    block:
+    - get_url:
+        dest: /home/ubuntu/go.tgz
+        owner: "ubuntu"
+        group: "ubuntu"
+        mode: "0644"
+        url: 'https://go.dev/dl/go1.17.3.linux-amd64.tar.gz'
+    - shell: >
+        tar -C /usr/local -zxvf /home/ubuntu/go.tgz
+    - git:
+        clone: yes
+        dest: /home/ubuntu/webapp
+        repo: 'https://github.com/yaskinny/tp-for-tf'
+    - shell: 
+        chdir: /home/ubuntu/webapp/
+        cmd: /usr/local/go/bin/go build -o /usr/local/bin/webapp cmd/main.go
+    - copy:
+        src: webapp.service
+        dest: /etc/systemd/system/
+        owner: root
+        group: root
+        mode: "0644"
+    - group:
+        state: present
+        name: webapp
+        gid: 3001
+    - user:
+        name: webapp
+        state: present
+        password_lock: yes
+        create_home: no
+        uid: 3001
+        group: webapp
+        shell: '/usr/bin/false'
+    - systemd:
+        daemon_reload: yes
+        name: webapp
+        enabled: yes
+        state: started
+...

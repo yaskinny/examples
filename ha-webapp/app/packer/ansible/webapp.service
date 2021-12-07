@@ -1,0 +1,18 @@
+[Unit]
+Description="run webapp"
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=webapp
+Group=webapp
+ExecStart=/usr/local/bin/webapp
+Type=simple
+KillMode=process
+# since there is no SD in this deployment, using static hardcoded ip
+Environment="REDIS_HOST=192.168.3.100:6379"
+Restart=on-failure
+RestartSec=1m
+
+[Install]
+WantedBy=multi-user.target

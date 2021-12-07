@@ -1,0 +1,90 @@
+---
+- name: ssh hardening
+  become: yes
+  block:
+  - name: make copy of old config
+    copy:
+      remote_src: yes
+      src: /etc/ssh/sshd_config
+      dest: /etc/ssh/sshd_config.bak
+      owner: root
+      group: root
+      mode: 0644
+  - name: get list of users to deny
+    shell: >
+      cat /etc/passwd | grep -v ^ubuntu | cut -d: -f1 | xargs
+    register: denyusers
+  - name: remove some directives
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regex: "{{ item }}"
+      state: absent
+    loop:
+      - '^DenyUsers'
+      - '^AllowUsers'
+      - '^IgnoreRhosts'
+      - '^LoginGraceTime'
+      - '^Protocol'
+      - '^PermitRootLogin'
+      - '^MaxAuthTries'
+      - '^DebianBanner'
+      - '^Banner'
+      - '^PrintMotd'
+      - '^X11Forwarding'
+      - '^PermitEmptyPasswords'
+      - '^PubkeyAuthentication'
+      - '^AuthenticationMethods'
+      - '^PasswordAuthentication'
+  - name: add confs
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      state: present
+      line: "{{ item }}"
+      insertbefore: BOF
+    loop:
+      - "AllowUsers ubuntu"
+      - "IgnoreRhosts yes"
+      - "LoginGraceTime 15s"
+      - "Protocol 2"
+      - "PermitRootLogin no"
+      - "MaxAuthTries 3"
+      - "DebianBanner no"
+      - "Banner none"
+      - "PrintMotd no"
+      - "X11Forwarding no"
+      - "PermitEmptyPasswords no"
+      - "PubkeyAuthentication yes"
+      - "AuthenticationMethods publickey"
+      - "PasswordAuthentication no"
+      - "DenyUsers {{ denyusers.stdout }}"
+- name: validate config and do reaction
+  become: yes
+  block:
+  - name: valide config
+    shell: >
+      /usr/sbin/sshd -t
+    register: sshd
+    ignore_errors: yes
+  - name:  if config is valid
+    service:
+      name: ssh
+      state: reloaded
+      enabled: yes
+    when: sshd.rc == 0
+  - name: if config is not valid
+    shell:
+      mv /etc/ssh/sshd_config{.bak,}
+    when: sshd.rc != 0
+- name: copy ssh keys
+  copy:
+    src: "{{ item.s }}"
+    dest: /home/ubuntu/.ssh/
+    mode: "{{ item.m }}"
+    owner: ubuntu
+    group: ubuntu
+  loop:
+  - s: id_rsa
+    m: "0600"
+  - s: id_rsa.pub
+    m: "0644"
+...

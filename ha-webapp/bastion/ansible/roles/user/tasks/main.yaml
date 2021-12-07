@@ -1,0 +1,13 @@
+---
+- name: set password for ubuntu user
+  become: yes
+  user:
+    name: ubuntu
+    state: present
+    password: "{{ ubuntu_password | password_hash('sha512') }}"
+- name: remove default sudo confs
+  become: yes
+  file:
+    path: /etc/sudoers.d/90-cloud-init-users
+    state: absent
+...

@@ -1,0 +1,11 @@
+---
+- hosts: all
+  become: yes
+  vars:
+    ansible_become_pass: "{{ ubuntu_password }}"
+  user: ubuntu
+
+  roles:
+  - role: ssh
+  - role: user
+...
